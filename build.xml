@@ -20,6 +20,14 @@
 
 	<target name="clone" depends="clean,prepare"> 
 		<gitclone repository="git@github.com:oat-sa/deploy-test-package.git" targetPath="src" />
+		
+		<if>
+			<equals arg1="${branch}" arg2="master" />
+			<then>
+				<echo level="info" msg="Already on master" />
+			</then>
+			<else> 
+				<echo level="info" msg="Fetch ${branch} " />
 		<gitfetch 
 			repository="${src.dir.resolved}" 		
 			source="origin" 
@@ -29,7 +37,8 @@
     		repository="${src.dir.resolved}"
     		branchname="${branch}"
     	/>
-		
+		</else>
+		</if>
 	</target>
 
 	<target name="composer_update" description="Update extensions and 3rd part lib using composer">
@@ -37,14 +46,22 @@
 			<arg value="--no-interaction" />
 			<arg value="--no-scripts" />
 			<arg value="--no-progress" />
+			<arg value="--working-dir" />
+			<arg path="${src.dir.resolved}" />
 
 		</composer>
 	</target>
 
 	<target name="push_composer_lock" description="Update and push composer.lock" depends="composer_update,build_number">
 
+		<exec 
+            command="git add composer.lock build" 
+            logoutput="true" 
+            passthru="true" 
+            dir="${src.dir.resolved}" 
+          />
 
-		<exec command='git commit -m "build ${buildNumber}" composer.lock build' logoutput="true"/>
+		<exec command='git commit -m "build ${buildNumber}"' logoutput="true" dir="${src.dir.resolved}" passthru="true" />
 
 		<gitpush 
 			repository="${src.dir.resolved}"
