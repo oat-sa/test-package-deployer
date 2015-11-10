@@ -70,9 +70,9 @@
 	</target>
 
 	<target name="build_number">
-		<echo msg="build ${buildNumber}" />
+		<echo msg="build ${branch}-${buildNumber}" />
   		<exec 
-  			command="echo -n ${buildNumber} > ${src.dir.resolved}/build" 
+  			command="echo ${branch}-${buildNumber} > ${src.dir.resolved}/build" 
   			logoutput="true"
             passthru="true" 
             />
