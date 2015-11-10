@@ -52,7 +52,7 @@
 		</composer>
 	</target>
 
-	<target name="push_composer_lock" description="Update and push composer.lock" depends="composer_update,build_number">
+	<target name="push_composer_lock" description="Update and push composer.lock" depends="clone,composer_update,build_number">
 
 		<exec 
             command="git add composer.lock build" 
