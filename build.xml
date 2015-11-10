@@ -1,0 +1,63 @@
+<project name="TAO deployer" default="help">
+
+	<target name="help">
+		<echo msg="Available Command : " />
+		<exec executable="./phing.phar" passthru="true">
+			<arg value="-l" />
+		</exec>
+	</target>
+
+
+	<property file="build.properties" />
+
+	<target name="clean">
+		<delete dir="src" />
+	</target>
+	<target name="prepare">
+		<mkdir dir="src" />
+	</target>
+	<resolvepath propertyName="src.dir.resolved" file="src" />
+
+	<target name="clone" depends="clean,prepare"> 
+		<gitclone repository="git@github.com:oat-sa/deploy-test-package.git" targetPath="src" />
+		<gitfetch 
+			repository="${src.dir.resolved}" 		
+			source="origin" 
+			refspec="${branch}:${branch}"
+		/>
+		<gitcheckout
+    		repository="${src.dir.resolved}"
+    		branchname="${branch}"
+    	/>
+		
+	</target>
+
+	<target name="composer_update" description="Update extensions and 3rd part lib using composer">
+		<composer command="update" composer="${composer.bin}" >
+			<arg value="--no-interaction" />
+			<arg value="--no-scripts" />
+			<arg value="--no-progress" />
+
+		</composer>
+	</target>
+
+	<target name="push_composer_lock" description="Update and push composer.lock" depends="composer_update,build_number">
+
+
+		<exec command='git commit -m "build ${buildNumber}" composer.lock build' logoutput="true"/>
+
+		<gitpush 
+			repository="${src.dir.resolved}"
+			refspec="${branch}:${branch}"
+			destination="origin" />
+	</target>
+
+	<target name="build_number">
+		<echo msg="build ${buildNumber}" />
+  		<exec 
+  			command="echo -n ${buildNumber} > ${src.dir.resolved}/build" 
+  			logoutput="true"
+            passthru="true" 
+            />
+  	</target>
+</project>
