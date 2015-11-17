@@ -41,6 +41,25 @@
 		</if>
 	</target>
 
+ 	<target name="create_new_deployment" description="Create new deployment">
+ 		<property name="branch" value="master" />
+		<if>
+			<isset property="new.deployment.name" />
+		<then>
+		<phingcall target="clone" />
+		<gitcheckout
+			repository="${src.dir.resolved}"
+    		branchname="test/${new.deployment.name}"
+    		create="true" />
+    		
+    	<exec command='sed -i "s*testDeploy*${new.deployment.name}*g" ${src.dir.resolved}/build.properies}' />
+		</then>	
+		<else>
+			<echo level="error" msg="new.deployment.name not set" />
+		</else>
+		</if>
+ 	</target>
+
 	<target name="composer_update" description="Update extensions and 3rd part lib using composer">
 		<composer command="update" composer="${composer.bin}" >
 			<arg value="--no-interaction" />
