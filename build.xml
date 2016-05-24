@@ -29,7 +29,7 @@
 
 	</target>
 	<resolvepath propertyName="src.dir.resolved" file="src" />
-	<resolvepath propertyName="src.dir.resolved" file="package" />
+	<resolvepath propertyName="package.dir.resolved" file="package" />
 
 	<target name="clone" depends="clean,prepare">
 		<gitclone repository="git@github.com:oat-sa/deploy-test-package.git" targetPath="src" />
