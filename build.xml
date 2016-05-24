@@ -1,5 +1,14 @@
 <project name="TAO deployer" default="help">
 
+
+	<tstamp>
+		<format property="TSTAMP" pattern="%Y%m%d_%H%M%S" />
+	</tstamp>
+	<property environment="env" />
+
+	<property name="package.name" value="${env.BUILD_TAG}_${TSTAMP}" />
+	<echo msg="${package.name}" />
+
 	<target name="help">
 		<echo msg="Available Command : " />
 		<exec executable="./phing.phar" passthru="true">
@@ -12,72 +21,58 @@
 
 	<target name="clean">
 		<delete dir="src" />
+		<delete dir="package" />
 	</target>
 	<target name="prepare">
 		<mkdir dir="src" />
+		<mkdir dir="package" />
+
 	</target>
 	<resolvepath propertyName="src.dir.resolved" file="src" />
+	<resolvepath propertyName="src.dir.resolved" file="package" />
 
-	<target name="clone" depends="clean,prepare"> 
+	<target name="clone" depends="clean,prepare">
 		<gitclone repository="git@github.com:oat-sa/deploy-test-package.git" targetPath="src" />
-		
+
 		<if>
 			<equals arg1="${branch}" arg2="master" />
 			<then>
 				<echo level="info" msg="Already on master" />
 			</then>
-			<else> 
+			<else>
 				<echo level="info" msg="Fetch ${branch} " />
-		<gitfetch 
-			repository="${src.dir.resolved}" 		
-			source="origin" 
-			refspec="${branch}:${branch}"
-		/>
-		<gitcheckout
-    		repository="${src.dir.resolved}"
-    		branchname="${branch}"
-    	/>
-		</else>
+				<gitfetch repository="${src.dir.resolved}" source="origin" refspec="${branch}:${branch}" />
+				<gitcheckout repository="${src.dir.resolved}" branchname="${branch}" />
+			</else>
 		</if>
 	</target>
 
- 	<target name="create_new_deployment" description="Create new deployment">
- 		<property name="branch" value="master" />
+	<target name="create_new_deployment" description="Create new deployment">
+		<property name="branch" value="master" />
 		<if>
 			<isset property="new.deployment.name" />
-		<then>
-			<phingcall target="clone" />
-			<gitcheckout
-				repository="${src.dir.resolved}"
-	    		branchname="test/${new.deployment.name}"
-	    		create="true" />
-	    		
-	    	<exec command='sed -i "s*testDeploy*${new.deployment.name}*g" ${src.dir.resolved}/build.properties' />
-	    	<exec command='sed -i "s*package*${new.deployment.name}*g" ${src.dir.resolved}/db.properties' />
+			<then>
+				<phingcall target="clone" />
+				<gitcheckout repository="${src.dir.resolved}" branchname="test/${new.deployment.name}" create="true" />
 
-	    	<phingcall target="composer_update" />
-	    	<exec 
-	            command="git add composer.json composer.lock build.properties db.properties" 
-	            logoutput="true" 
-	            passthru="true" 
-	            dir="${src.dir.resolved}" 
-	          />
+				<exec command='sed -i "s*testDeploy*${new.deployment.name}*g" ${src.dir.resolved}/build.properties' />
+				<exec command='sed -i "s*package*${new.deployment.name}*g" ${src.dir.resolved}/db.properties' />
 
-			<exec command='git commit -m "initial commit new branch test/${new.deployment.name}"' logoutput="true" dir="${src.dir.resolved}" passthru="true" />
+				<phingcall target="composer_update" />
+				<exec command="git add composer.json composer.lock build.properties db.properties" logoutput="true" passthru="true" dir="${src.dir.resolved}" />
 
-			<gitpush 
-			repository="${src.dir.resolved}"
-			refspec="test/${new.deployment.name}:test/${new.deployment.name}"
-			destination="origin" />
-		</then>	
-		<else>
-			<echo level="error" msg="new.deployment.name not set" />
-		</else>
+				<exec command='git commit -m "initial commit new branch test/${new.deployment.name}"' logoutput="true" dir="${src.dir.resolved}" passthru="true" />
+
+				<gitpush repository="${src.dir.resolved}" refspec="test/${new.deployment.name}:test/${new.deployment.name}" destination="origin" />
+			</then>
+			<else>
+				<echo level="error" msg="new.deployment.name not set" />
+			</else>
 		</if>
- 	</target>
+	</target>
 
 	<target name="composer_update" description="Update extensions and 3rd part lib using composer">
-		<composer command="update" composer="${composer.bin}" >
+		<composer command="update" composer="/usr/local/bin/composer">
 			<arg value="--no-interaction" />
 			<arg value="--no-scripts" />
 			<arg value="--no-progress" />
@@ -88,32 +83,36 @@
 	</target>
 
 
-
-
-
-	<target name="push_composer_lock" description="Update and push composer.lock" depends="clone,composer_update,build_number">
-
-		<exec 
-            command="git add composer.lock build" 
-            logoutput="true" 
-            passthru="true" 
-            dir="${src.dir.resolved}" 
-          />
-
-		<exec command='git commit -m "build ${buildNumber}"' logoutput="true" dir="${src.dir.resolved}" passthru="true" />
-
-		<gitpush 
-			repository="${src.dir.resolved}"
-			refspec="${branch}:${branch}"
-			destination="origin" />
+	<target name="Clean_up" description="Removes git meta information, dramatically reduce package size">
+		<echo msg="">Root calculated as ${package.dir.resolved}</echo>
+		<delete includeemptydirs="true">
+			<fileset dir="${package.dir.resolved}" defaultexcludes="false">
+				<exclude name=".git/**" />
+				<include name="**/.git/**" />
+			</fileset>
+		</delete>
 	</target>
 
-	<target name="build_number">
-		<echo msg="build ${branch}-${buildNumber}" />
-  		<exec 
-  			command="echo ${branch}-${buildNumber} > ${src.dir.resolved}/build" 
-  			logoutput="true"
-            passthru="true" 
-            />
-  	</target>
+	<target name="deploy">
+		<exec command="/usr/bin/aws s3 cp --region eu-west-1 ${package.dir.resolved}/${package.name}.tar.gz s3://tao-jenkins-pubfiles/" passthru="true" checkreturn="true" />
+
+		<http-request url="http://deploy.taocloud.org/deploy" verbose="true" responseRegex='/"success":true/' method="POST">
+			<postparameter name="package_url" value="http://tao-jenkins-pubfiles.s3-website-us-east-1.amazonaws.com/${package.name}.tar.gz" />
+			<postparameter name="build_id" value="${package.name}" />
+		</http-request>
+
+	</target>
+
+	<target name="push_composer_lock" description="Update and push composer.lock" depends="clone,composer_update,Clean_up">
+
+		<echo file="${src.dir.resolved}/continuousphp.package" msg='{"build_id":"${package.name}","ref":"${branch}","commit":"tbd"}' />
+		<delete file="${package.dir.resolved}/${package.name}.tar.gz" />
+		<tar destfile="${package.dir.resolved}/${package.name}.tar.gz" compression="gzip" includeemptydirs="true">
+			<fileset dir="${src.dir.resolved}" expandsymboliclinks="true" excludes="db.local.properties">
+				<include name="**/**" />
+			</fileset>
+		</tar>
+	</target>
+
+
 </project>
