@@ -83,7 +83,7 @@
 	</target>
 
 
-	<target name="Clean_up" description="Removes git meta information, dramatically reduce package size">
+	<target name="clean_up" description="Removes git meta information, dramatically reduce package size">
 		<echo msg="">Root calculated as ${package.dir.resolved}</echo>
 		<delete includeemptydirs="true">
 			<fileset dir="${package.dir.resolved}" defaultexcludes="false">
@@ -93,7 +93,7 @@
 		</delete>
 	</target>
 
-	<target name="deploy">
+	<target name="deploy" description="Update and push composer.lock" depends="clone,composer_update,clean_up,package">
 		<exec command="/usr/bin/aws s3 cp --region eu-west-1 ${package.dir.resolved}/${package.name}.tar.gz s3://tao-jenkins-pubfiles/" passthru="true" checkreturn="true" />
 
 		<http-request url="http://deploy.taocloud.org/deploy" verbose="true" responseRegex='/"success":true/' method="POST">
@@ -103,7 +103,7 @@
 
 	</target>
 
-	<target name="push_composer_lock" description="Update and push composer.lock" depends="clone,composer_update,Clean_up">
+	<target name="package" description="package application">
 
 		<echo file="${src.dir.resolved}/continuousphp.package" msg='{"build_id":"${package.name}","ref":"${branch}","commit":"tbd"}' />
 		<delete file="${package.dir.resolved}/${package.name}.tar.gz" />
