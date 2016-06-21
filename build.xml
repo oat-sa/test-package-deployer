@@ -71,8 +71,8 @@
 		</if>
 	</target>
 
-	<target name="composer_install" description="Update extensions and 3rd part lib using composer">
-		<composer command="install" composer="/usr/local/bin/composer">
+	<target name="composer_update" description="Update extensions and 3rd part lib using composer">
+		<composer command="update" composer="/usr/local/bin/composer">
 			<arg value="--no-interaction" />
 			<arg value="--no-scripts" />
 			<arg value="--no-progress" />
@@ -82,6 +82,16 @@
 		</composer>
 	</target>
 
+	<target name="composer_install" description="Install extensions and 3rd part lib using composer">
+		<composer command="install" composer="/usr/local/bin/composer">
+			<arg value="--no-interaction" />
+			<arg value="--no-scripts" />
+			<arg value="--no-progress" />
+			<arg value="--working-dir" />
+			<arg path="${src.dir.resolved}" />
+
+		</composer>
+	</target>
 
 	<target name="clean_up" description="Removes git meta information, dramatically reduce package size">
 		<echo msg="">Root calculated as ${package.dir.resolved}</echo>
@@ -93,7 +103,7 @@
 		</delete>
 	</target>
 
-	<target name="deploy" description="Update and push composer.lock" depends="clone,composer_install,clean_up,package">
+	<target name="deploy" description="Update and push composer.lock">
 		<exec command="/usr/bin/aws s3 cp --region eu-west-1 ${package.dir.resolved}/${package.name}.tar.gz s3://tao-jenkins-pubfiles/" passthru="true" checkreturn="true" />
 
 		<http-request url="http://deploy.taocloud.org/deploy" verbose="true" responseRegex='/"success":true/' method="POST">
