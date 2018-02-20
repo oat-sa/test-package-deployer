@@ -104,10 +104,10 @@
 	</target>
 
 	<target name="deploy" description="Update and push composer.lock">
-		<exec command="/usr/bin/aws s3 cp --region ${aws.region} ${package.dir.resolved}/${package.name}.tar.gz s3://${env.bucket}/" passthru="true" checkreturn="true" />
+		<exec command="/usr/bin/aws s3 cp --region ${aws.region} ${package.dir.resolved}/${package.name}.tar.gz s3://${bucket}/" passthru="true" checkreturn="true" />
 
 		<http-request url="http://deploy.taocloud.org/deploy" verbose="true" responseRegex='/"success":true/' method="POST">
-			<postparameter name="package_url" value="http://${env.bucket}.s3-website-us-east-1.amazonaws.com/${package.name}.tar.gz" />
+			<postparameter name="package_url" value="http://${bucket}.s3-website-us-east-1.amazonaws.com/${package.name}.tar.gz" />
 			<postparameter name="build_id" value="${package.name}" />
 		</http-request>
 
